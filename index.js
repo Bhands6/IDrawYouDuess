@@ -207,6 +207,17 @@ function nameOf(key) {
   return p ? p.name : '';
 }
 
+// 只给当前画手推送一条界面提示（猜图者不会收到）
+function emitToDrawer(event, payload) {
+  const dkey = state.drawerKey;
+  if (!dkey) return;
+  for (const [sid, k] of sockets) {
+    if (k !== dkey) continue;
+    const s = io.sockets.sockets.get(sid);
+    if (s) s.emit(event, payload);
+  }
+}
+
 function onlineHumans() {
   return joinOrder.filter(k => {
     const p = players.get(k);
@@ -730,7 +741,7 @@ io.on('connection', (socket) => {
 
     state.hintAsks.add(key);
     io.emit('feed:sys', '「' + nameOf(key) + '」请求给个提示');
-    io.emit('notice', { text: nameOf(key) + ' 请求给个提示' });
+    emitToDrawer('notice', { text: nameOf(key) + ' 请求给个提示' });
     broadcastState();
   });
 
@@ -844,7 +855,6 @@ io.on('connection', (socket) => {
 
     state.nextVotes.add(key);
     io.emit('feed:sys', '「' + nameOf(key) + '」准备猜下一轮');
-    io.emit('notice', { text: nameOf(key) + ' 准备猜下一轮' });
     broadcastState();
   });
 
@@ -875,7 +885,7 @@ io.on('connection', (socket) => {
     }
     state.resetAsks.add(key);
     io.emit('feed:sys', '「' + nameOf(key) + '」请求重开一局');
-    io.emit('notice', { text: nameOf(key) + ' 请求重开一局' });
+    emitToDrawer('notice', { text: nameOf(key) + ' 请求重开一局' });
     broadcastState();
   });
 

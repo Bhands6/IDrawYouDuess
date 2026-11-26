@@ -197,18 +197,24 @@ canvas#board{display:block;width:100%;height:auto;touch-action:none;cursor:cross
 .board-hint.is-hidden{opacity:0}
 .board-hint .penline{width:120px;height:3px;background:var(--ink);border-radius:99px;opacity:.25}
 
-/* 画布上的临时通知（有人请求提示 / 请求重开等） */
+/* 画布上的临时通知（只推给画手：有人请求提示 / 请求重开） */
 .board-note{
-  position:absolute;left:50%;top:14px;transform:translate(-50%,-18px) scale(.9);z-index:6;pointer-events:none;
-  max-width:82%;padding:10px 20px;background:var(--ink);color:var(--paper);border-radius:999px;
-  font-family:var(--font-display);font-size:15px;letter-spacing:.02em;
-  box-shadow:0 0 0 3px rgba(255,253,246,.6), 3px 3px 0 rgba(20,17,24,.2);
-  opacity:0;
-  transition:opacity .26s ease, transform .34s cubic-bezier(.18,1.5,.42,1);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+  position:absolute;left:50%;top:44%;transform:translate(-50%,-50%) scale(1.4);z-index:7;
+  pointer-events:none;text-align:center;max-width:88%;
+  font-family:var(--font-display);font-size:clamp(24px,3.8vw,44px);line-height:1.2;
+  color:var(--ink);letter-spacing:.02em;
+  text-shadow:0 3px 0 rgba(20,17,24,.10), 0 0 22px rgba(255,253,246,.95);
+  opacity:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
 }
-.board-note.is-on{opacity:1;transform:translate(-50%,0) scale(1)}
-.board-note::before{content:"◆";margin-right:8px;font-size:9px;color:var(--yellow);vertical-align:2px}
+.board-note.is-on{animation:noteShrink 2.6s cubic-bezier(.25,.8,.35,1) forwards}
+
+/* 由大变小、边缩边淡出 */
+@keyframes noteShrink{
+  0%   {opacity:0;    transform:translate(-50%,-50%) scale(1.45)}
+  12%  {opacity:1;    transform:translate(-50%,-50%) scale(1.18)}
+  55%  {opacity:.95;  transform:translate(-50%,-50%) scale(.86)}
+  100% {opacity:0;    transform:translate(-50%,-50%) scale(.42)}
+}
 .board-hint p{font-family:var(--font-display);font-size:clamp(17px,2.3vw,25px)}
 .board-hint small{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;color:var(--muted)}
 .dash-box{width:82px;height:82px;border:3.5px dashed var(--ink);border-radius:18px;display:grid;place-items:center;opacity:.55}
@@ -1182,13 +1188,15 @@ window.__bootGame = function(){
   socket.on('feed', addGuess);
   socket.on('feed:sys', addSys);
 
-  /* ================= 画布上的临时通知 ================= */
+  /* ================= 画布上的临时通知（只有画手会收到） ================= */
   let noteTimer = null;
   function showBoardNote(text){
     boardNote.textContent = text;
+    boardNote.classList.remove('is-on');
+    void boardNote.offsetWidth;      // 强制重排，保证连续两次也能重播动画
     boardNote.classList.add('is-on');
     clearTimeout(noteTimer);
-    noteTimer = setTimeout(() => boardNote.classList.remove('is-on'), 3400);
+    noteTimer = setTimeout(() => boardNote.classList.remove('is-on'), 2700);
   }
 
   socket.on('notice', (payload) => {
