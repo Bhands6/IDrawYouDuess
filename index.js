@@ -125,6 +125,7 @@ const state = {
   hint: '',
   revealed: 0,
   timeLeft: TOTAL,
+  timeLimit: TOTAL,      // 每轮时长，画手可改
   timerRunning: false,
   timer: null,
   strokes: [],
@@ -317,7 +318,7 @@ function viewFor(socketId) {
     revealed: state.revealed,
     mask: chars.map((c, i) => (i < state.revealed ? c : '')),
     timeLeft: state.timeLeft,
-    total: TOTAL,
+    total: state.timeLimit,
     running: state.timerRunning,
     lastWord: state.phase === 'revealed' ? state.word : '',
     lastWinner: state.phase === 'revealed' ? state.lastWinner : '',
@@ -359,7 +360,7 @@ function beginRound() {
   state.nextVotes.clear();
   state.hintAsks.clear();
   state.revealed = 0;
-  state.timeLeft = TOTAL;
+  state.timeLeft = state.timeLimit;
   state.timerRunning = false;
   state.lastWinner = '';
 
@@ -397,7 +398,7 @@ function retryRound() {
   state.strokes = [];
   state.guessed.clear();
   state.revealed = 0;
-  state.timeLeft = TOTAL;
+  state.timeLeft = state.timeLimit;
   state.timerRunning = false;
   state.phase = state.drawerKey ? 'idle' : 'waiting';
 
@@ -406,12 +407,8 @@ function retryRound() {
   io.emit('feed:sys', '画布已重置，同一道题再来一次');
 }
 
-function startTimer() {
-  if (state.timerRunning || state.phase === 'revealed' || !state.drawerKey) return;
-  state.timerRunning = true;
-  state.phase = 'drawing';
-  scheduleBots();
-
+function runTimer() {
+  clearInterval(state.timer);
   state.timer = setInterval(() => {
     state.timeLeft--;
     if (state.timeLeft <= 0) {
@@ -419,10 +416,19 @@ function startTimer() {
       endRound(null);
       return;
     }
-    io.emit('tick', { timeLeft: state.timeLeft, total: TOTAL });
+    io.emit('tick', { timeLeft: state.timeLeft, total: state.timeLimit });
   }, 1000);
+}
 
-  io.emit('tick', { timeLeft: state.timeLeft, total: TOTAL });
+function startTimer() {
+  if (state.timerRunning || state.phase === 'revealed' || !state.drawerKey) return;
+  state.timerRunning = true;
+  state.phase = 'drawing';
+  scheduleBots();
+
+  runTimer();
+
+  io.emit('tick', { timeLeft: state.timeLeft, total: state.timeLimit });
   broadcastState();
 }
 
@@ -515,7 +521,7 @@ io.on('connection', (socket) => {
         // 画手刷新回来：题目和画布都还在，直接续上
         state.phase = 'idle';
         state.timerRunning = false;
-        state.timeLeft = TOTAL;
+        state.timeLeft = state.timeLimit;
         state.revealed = 0;
         state.guessed.clear();
         io.emit('feed:sys', '画手回来了，接着画');
@@ -656,7 +662,7 @@ io.on('connection', (socket) => {
     state.revealed = 0;
     state.guessed.clear();
     state.strokes = [];
-    state.timeLeft = TOTAL;
+    state.timeLeft = state.timeLimit;
     state.timerRunning = false;
     state.phase = 'idle';
 
@@ -747,6 +753,30 @@ io.on('connection', (socket) => {
 
     io.emit('feed', { name: p.name, color: p.color, text, hit: false });
     if (!state.timerRunning && state.phase !== 'revealed') startTimer();
+  });
+
+  /* ---------- 本轮时长 ---------- */
+  // 只有画手能改，15~300 秒
+  socket.on('time:set', (payload) => {
+    const key = sockets.get(socket.id);
+    if (!key || key !== state.drawerKey) {
+      socket.emit('toast', '只有画手能设时长');
+      return;
+    }
+
+    let sec = Math.round(Number(payload && payload.seconds));
+    if (!Number.isFinite(sec) || sec <= 0) return;
+    sec = Math.max(15, Math.min(300, sec));
+
+    state.timeLimit = sec;
+    state.timeLeft = sec;
+
+    // 正在画的话立刻按新时长继续跑
+    if (state.timerRunning && state.phase === 'drawing') runTimer();
+
+    io.emit('tick', { timeLeft: sec, total: sec });
+    broadcastState();
+    io.emit('feed:sys', '画手把本轮时长调成 ' + sec + ' 秒');
   });
 
   /* ---------- 回合控制 ---------- */

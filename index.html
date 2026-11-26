@@ -261,6 +261,36 @@ canvas#board{display:block;width:100%;height:auto;touch-action:none;cursor:cross
 .timer-card.danger .timer-bar i{background:var(--red)}
 .timer-card.danger .timer-num{color:var(--red);animation:pulse 1s infinite}
 
+/* 画手设时长 */
+.timer-set{
+  position:absolute;top:12px;right:14px;z-index:3;width:28px;height:28px;padding:0;display:grid;place-items:center;
+  background:var(--paper);border:2.5px solid var(--ink);border-radius:9px;cursor:pointer;
+  transition:transform .13s ease
+}
+.timer-set:hover{transform:rotate(-14deg)}
+.timer-set[hidden]{display:none}
+.timer-editor{
+  position:relative;z-index:2;margin-top:15px;padding-top:13px;
+  border-top:2px dashed rgba(246,240,226,.3);display:flex;flex-direction:column;gap:10px
+}
+.timer-editor[hidden]{display:none}
+.timer-editor .te-title{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.16em;opacity:.65}
+.timer-presets{display:flex;gap:6px;flex-wrap:wrap}
+.timer-presets button{
+  font-family:var(--font-mono);font-size:11.5px;padding:5px 10px;border:2.5px solid var(--ink);
+  border-radius:8px;background:var(--paper);color:var(--ink);cursor:pointer;
+  transition:transform .12s ease,background .18s ease
+}
+.timer-presets button:hover{transform:translateY(-2px)}
+.timer-presets button.is-on{background:var(--yellow)}
+.timer-custom{display:flex;gap:7px}
+.timer-custom input{
+  flex:1;min-width:0;font-family:var(--font-mono);font-size:13px;padding:7px 10px;
+  border:2.5px solid var(--ink);border-radius:8px;background:var(--paper);color:var(--ink);outline:none
+}
+.timer-custom input:focus{box-shadow:3px 3px 0 var(--yellow)}
+.timer-custom .btn{padding:6px 13px;font-size:12.5px;box-shadow:3px 3px 0 rgba(0,0,0,.4)}
+
 .mask-card .word-mask{display:flex;flex-wrap:wrap;gap:9px}
 .mask-ch{
   width:52px;height:58px;display:grid;place-items:center;font-family:var(--font-display);font-size:26px;
@@ -574,11 +604,31 @@ canvas#board{display:block;width:100%;height:auto;touch-action:none;cursor:cross
   <!-- 右侧 -->
   <aside class="side">
     <div class="timer-card" id="timerCard">
+      <button class="timer-set" id="timerSetBtn" type="button" title="设置本轮时长" hidden>
+        <svg width="14" height="14" viewBox="0 0 32 32" fill="none" stroke="#141118" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="16" cy="16" r="11"/><path d="M16 9v7l5 3"/>
+        </svg>
+      </button>
       <div class="timer-top">
         <div class="timer-num" id="timerNum">80</div>
         <div class="timer-state" id="timerState">准备开始<br>下笔计时</div>
       </div>
       <div class="timer-bar"><i id="timerBar"></i></div>
+
+      <div class="timer-editor" id="timerEditor" hidden>
+        <div class="te-title">本轮时间（15–300 秒）</div>
+        <div class="timer-presets" id="timerPresets">
+          <button type="button" data-sec="30">30s</button>
+          <button type="button" data-sec="60">60s</button>
+          <button type="button" data-sec="80">80s</button>
+          <button type="button" data-sec="120">120s</button>
+          <button type="button" data-sec="180">180s</button>
+        </div>
+        <div class="timer-custom">
+          <input id="timerInput" type="number" min="15" max="300" step="5" placeholder="自定义秒数">
+          <button class="btn btn-accent" id="timerSave" type="button">确定</button>
+        </div>
+      </div>
     </div>
 
     <div class="panel mask-card">
@@ -698,6 +748,8 @@ window.__bootGame = function(){
   const roleDrawerNote = $('roleDrawerNote'), takeDrawerBtn = $('takeDrawerBtn');
   const topicCard = $('topicCard'), topicEditBtn = $('topicEditBtn'), topicEditor = $('topicEditor');
   const editWord = $('editWord'), editHint = $('editHint');
+  const timerSetBtn = $('timerSetBtn'), timerEditor = $('timerEditor');
+  const timerInput = $('timerInput'), timerSave = $('timerSave'), timerPresets = $('timerPresets');
 
   /* ================= 状态 ================= */
   const socket = io(window.__SHARECODE__
@@ -867,6 +919,15 @@ window.__bootGame = function(){
     if (S.phase === 'revealed') timerState.innerHTML = '本轮结束<br>等下一局';
     else if (!S.running) timerState.innerHTML = '准备开始<br>下笔计时';
     else timerState.innerHTML = danger ? '最后冲刺！' : '画画中…<br>大家在猜';
+
+    // 只有画手能改时长
+    const canSet = isDrawer() && S.phase !== 'revealed';
+    timerSetBtn.hidden = !canSet;
+    if (!canSet) closeTimerEditor();
+
+    timerPresets.querySelectorAll('button').forEach(b => {
+      b.classList.toggle('is-on', Number(b.dataset.sec) === Number(S.total));
+    });
   }
 
   function renderHint(){
@@ -1245,6 +1306,48 @@ window.__bootGame = function(){
     if (topicEditor.hidden) return;
     if (topicCard.contains(e.target)) return;
     closeTopicEditor();
+  });
+
+  /* ================= 本轮时长 ================= */
+  function closeTimerEditor(){
+    timerEditor.hidden = true;
+  }
+
+  function applyTimer(sec){
+    const n = Math.round(Number(sec));
+    if (!Number.isFinite(n) || n < 15 || n > 300){
+      showToast('时长要在 15–300 秒之间');
+      return;
+    }
+    socket.emit('time:set', { seconds: n });
+    closeTimerEditor();
+  }
+
+  timerSetBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (timerEditor.hidden){
+      timerEditor.hidden = false;
+      timerInput.value = S ? S.total : '';
+      timerInput.focus();
+      timerInput.select();
+    } else {
+      closeTimerEditor();
+    }
+  });
+
+  timerPresets.querySelectorAll('button').forEach(b => {
+    b.addEventListener('click', () => applyTimer(b.dataset.sec));
+  });
+  timerSave.addEventListener('click', () => applyTimer(timerInput.value));
+  timerInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter'){ e.preventDefault(); applyTimer(timerInput.value); }
+    else if (e.key === 'Escape'){ e.preventDefault(); closeTimerEditor(); }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (timerEditor.hidden) return;
+    if (timerCard.contains(e.target)) return;
+    closeTimerEditor();
   });
 
   /* ================= 工具栏 ================= */
