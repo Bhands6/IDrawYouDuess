@@ -613,6 +613,43 @@ io.on('connection', (socket) => {
     io.emit('feed:sys', '画手清空了画布');
   });
 
+  /* ---------- 自定义题目 ---------- */
+  // 画手可以把自己要画的东西改成任意词，改完清空画布重新计时
+  socket.on('topic:set', (payload) => {
+    const key = sockets.get(socket.id);
+    if (!key || key !== state.drawerKey) {
+      socket.emit('toast', '只有画手能改题目');
+      return;
+    }
+    if (state.phase === 'revealed') {
+      socket.emit('toast', '本轮已经结束了，先开下一轮');
+      return;
+    }
+
+    const word = String((payload && payload.word) || '').replace(/\s+/g, ' ').trim().slice(0, 8);
+    if (!word) {
+      socket.emit('toast', '题目不能是空的');
+      return;
+    }
+
+    clearInterval(state.timer);
+    state.timer = null;
+    clearBotTimers();
+
+    state.word = word;
+    state.cat = '自定义';
+    state.revealed = 0;
+    state.guessed.clear();
+    state.strokes = [];
+    state.timeLeft = TOTAL;
+    state.timerRunning = false;
+    state.phase = 'idle';
+
+    io.emit('canvas:init', []);
+    broadcastState();
+    io.emit('feed:sys', '画手把题目改成了「' + word + '」');
+  });
+
   /* ---------- 提示 ---------- */
   socket.on('hint', () => {
     const key = sockets.get(socket.id);

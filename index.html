@@ -154,6 +154,26 @@ body::after{
 #secretWord{font-family:var(--font-display);font-size:30px;color:var(--red);line-height:1}
 .topic-cat{font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;border-left:2.5px solid var(--ink);padding-left:12px}
 
+/* 自定义题目 */
+.topic-card{position:relative}
+.topic-edit{
+  position:absolute;top:-10px;right:-10px;width:27px;height:27px;padding:0;display:grid;place-items:center;
+  background:var(--yellow);border:2.5px solid var(--ink);border-radius:50%;box-shadow:2px 2px 0 var(--ink);
+  cursor:pointer;transition:transform .13s ease,box-shadow .13s ease,background .2s ease
+}
+.topic-edit:hover{transform:translate(-1px,-1px) rotate(-10deg);box-shadow:3px 3px 0 var(--ink)}
+.topic-edit:active{transform:translate(1px,1px);box-shadow:0 0 0 var(--ink)}
+.topic-edit[hidden]{display:none}
+.topic-card.editing .topic-edit{background:var(--red)}
+.topic-card.editing .topic-edit svg{stroke:#fff}
+.topic-card.editing #secretWord{display:none}
+#topicInput{
+  display:none;width:7.5em;font-family:var(--font-display);font-size:26px;color:var(--red);line-height:1.2;
+  background:var(--paper);border:2.5px solid var(--ink);border-radius:10px;padding:1px 10px;outline:none;
+  box-shadow:3px 3px 0 var(--yellow)
+}
+.topic-card.editing #topicInput{display:block}
+
 .canvas-wrap{position:relative;background:#fff;border:4px solid var(--ink);border-radius:22px;box-shadow:10px 10px 0 var(--ink);overflow:hidden}
 canvas#board{display:block;width:100%;height:auto;touch-action:none;cursor:crosshair}
 .canvas-wrap.is-viewer #board{cursor:default}
@@ -450,12 +470,18 @@ canvas#board{display:block;width:100%;height:auto;touch-action:none;cursor:cross
   <section class="stage">
     <div class="stage-top">
       <div class="drawer-chip"><span class="dot"></span><span id="drawerText">等待玩家入座…</span></div>
-      <div class="topic-card">
+      <div class="topic-card" id="topicCard">
         <div>
           <div class="topic-label" id="topicLabel">题目</div>
           <strong id="secretWord">？</strong>
+          <input id="topicInput" type="text" maxlength="8" placeholder="想画什么？" autocomplete="off">
         </div>
         <div class="topic-cat"><span id="topicCat">秘密</span><br><span id="topicLen">0 个字</span></div>
+        <button class="topic-edit" id="topicEditBtn" type="button" title="自己定题目" hidden>
+          <svg width="13" height="13" viewBox="0 0 32 32" fill="none" stroke="#141118" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 4l6 6-14 14-7 2 2-7L22 4z"/>
+          </svg>
+        </button>
       </div>
     </div>
 
@@ -641,6 +667,7 @@ window.__bootGame = function(){
   const lobby = $('lobby'), lobbyName = $('lobbyName'), lobbyFoot = $('lobbyFoot');
   const roleDrawer = $('roleDrawer'), roleGuesser = $('roleGuesser');
   const roleDrawerNote = $('roleDrawerNote'), takeDrawerBtn = $('takeDrawerBtn');
+  const topicCard = $('topicCard'), topicInput = $('topicInput'), topicEditBtn = $('topicEditBtn');
 
   /* ================= 状态 ================= */
   const socket = io(window.__SHARECODE__
@@ -767,10 +794,11 @@ window.__bootGame = function(){
   function renderTopic(){
     if (!S) return;
     const drawer = isDrawer();
-    $('topicLabel').textContent = drawer ? '你的题目' : '题目';
+    $('topicLabel').textContent = drawer ? '你的题目 · 可改' : '题目';
     $('secretWord').textContent = drawer ? S.word : '？'.repeat(Math.max(1, S.len));
     $('topicCat').textContent = drawer ? S.cat : '秘密';
     $('topicLen').textContent = S.len + ' 个字';
+    topicEditBtn.hidden = !drawer || S.phase === 'revealed';
   }
 
   function renderMask(){
@@ -1093,6 +1121,48 @@ window.__bootGame = function(){
   );
   canvas.addEventListener('contextmenu', e => e.preventDefault());
   canvas.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
+
+  /* ================= 自定义题目 ================= */
+  let editingTopic = false;
+
+  function startTopicEdit(){
+    if (!S || !isDrawer() || S.phase === 'revealed'){
+      showToast('只有画手能改题目');
+      return;
+    }
+    editingTopic = true;
+    topicCard.classList.add('editing');
+    topicInput.value = S.word || '';
+    topicInput.focus();
+    topicInput.select();
+  }
+
+  function endTopicEdit(commit){
+    if (!editingTopic) return;
+    editingTopic = false;
+    topicCard.classList.remove('editing');
+    if (!commit) return;
+
+    const v = topicInput.value.trim();
+    if (!v){ showToast('题目不能是空的'); return; }
+    if (S && v === S.word) return;
+    socket.emit('topic:set', { word: v });
+  }
+
+  // 提交按钮不能抢走输入框焦点，否则 blur 会先把编辑态取消
+  topicEditBtn.addEventListener('mousedown', (e) => e.preventDefault());
+  topicEditBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (editingTopic) endTopicEdit(true);
+    else startTopicEdit();
+  });
+
+  topicInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter'){ e.preventDefault(); endTopicEdit(true); }
+    else if (e.key === 'Escape'){ e.preventDefault(); endTopicEdit(false); }
+  });
+  // 失焦也提交（输入完直接点别处不该丢），Esc 才是放弃
+  topicInput.addEventListener('blur', () => endTopicEdit(true));
 
   /* ================= 工具栏 ================= */
   document.querySelectorAll('.swatch').forEach(btn => {
