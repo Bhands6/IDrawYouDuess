@@ -730,6 +730,7 @@ io.on('connection', (socket) => {
 
     state.hintAsks.add(key);
     io.emit('feed:sys', '「' + nameOf(key) + '」请求给个提示');
+    io.emit('notice', { text: nameOf(key) + ' 请求给个提示' });
     broadcastState();
   });
 
@@ -843,6 +844,7 @@ io.on('connection', (socket) => {
 
     state.nextVotes.add(key);
     io.emit('feed:sys', '「' + nameOf(key) + '」准备猜下一轮');
+    io.emit('notice', { text: nameOf(key) + ' 准备猜下一轮' });
     broadcastState();
   });
 
@@ -873,6 +875,7 @@ io.on('connection', (socket) => {
     }
     state.resetAsks.add(key);
     io.emit('feed:sys', '「' + nameOf(key) + '」请求重开一局');
+    io.emit('notice', { text: nameOf(key) + ' 请求重开一局' });
     broadcastState();
   });
 
