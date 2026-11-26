@@ -872,9 +872,20 @@ window.__bootGame = function(){
   function renderHint(){
     if (!S) return;
     const drawer = isDrawer();
-    hintBtn.disabled = !drawer;
-    hintBtn.style.opacity = drawer ? '1' : '.4';
-    hintBtn.style.cursor = drawer ? 'pointer' : 'not-allowed';
+    const over = S.phase === 'revealed';
+    const askedCount = S.hintAskCount || 0;
+
+    if (drawer){
+      hintBtn.textContent = askedCount > 0 ? '给提示 (' + askedCount + ')' : '给提示';
+      hintBtn.disabled = over;
+      hintBtn.style.background = askedCount > 0 ? 'var(--red)' : '';
+      hintBtn.style.color = askedCount > 0 ? '#fff' : '';
+    } else {
+      hintBtn.textContent = S.hintAsked ? '已请求' : '请求提示';
+      hintBtn.disabled = over || !!S.hintAsked;
+      hintBtn.style.background = '';
+      hintBtn.style.color = '';
+    }
 
     const parts = [];
     if (S.hintText) parts.push('提示：' + S.hintText);
@@ -885,7 +896,7 @@ window.__bootGame = function(){
     } else {
       hintLine.textContent = drawer
         ? '点题目卡片的铅笔能自己出题，写上的提示所有人都看得到'
-        : '等画手下笔，本轮就开始了。';
+        : '点右上角「请求提示」，画手可以给你露一个字';
     }
   }
 
@@ -1263,7 +1274,10 @@ window.__bootGame = function(){
 
   $('undoBtn').addEventListener('click', () => socket.emit('undo'));
   $('clearBtn').addEventListener('click', () => socket.emit('clear'));
-  hintBtn.addEventListener('click', () => socket.emit('hint'));
+  hintBtn.addEventListener('click', () => {
+    if (S && S.isDrawer) socket.emit('hint');
+    else socket.emit('hint:request');
+  });
 
   /* ================= 猜词输入 ================= */
   $('guessForm').addEventListener('submit', (e) => {

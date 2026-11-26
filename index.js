@@ -130,6 +130,7 @@ const state = {
   strokes: [],
   guessed: new Set(),
   nextVotes: new Set(),   // 本轮结束后，按了「请求下一轮」的猜图者
+  hintAsks: new Set(),    // 本轮里请求过提示、还没被响应的猜图者
   botTimers: [],
   lastWinner: ''
 };
@@ -321,6 +322,8 @@ function viewFor(socketId) {
     lastWord: state.phase === 'revealed' ? state.word : '',
     lastWinner: state.phase === 'revealed' ? state.lastWinner : '',
     nextVotes: [...state.nextVotes],
+    hintAsked: !!key && state.hintAsks.has(key),
+    hintAskCount: state.hintAsks.size,
     players: [...players.values()].map(p => ({
       key: p.key,
       name: p.name,
@@ -354,6 +357,7 @@ function beginRound() {
   state.strokes = [];
   state.guessed.clear();
   state.nextVotes.clear();
+  state.hintAsks.clear();
   state.revealed = 0;
   state.timeLeft = TOTAL;
   state.timerRunning = false;
@@ -431,6 +435,7 @@ function endRound(winnerKey) {
   clearBotTimers();
   state.phase = 'revealed';
   state.nextVotes.clear();
+  state.hintAsks.clear();
 
   const drawer = players.get(state.drawerKey);
   let drawerBonus = 0;
@@ -661,9 +666,35 @@ io.on('connection', (socket) => {
   });
 
   /* ---------- 提示 ---------- */
+  // 猜图者只能「请求」提示，是否给由画手决定
+  socket.on('hint:request', () => {
+    const key = sockets.get(socket.id);
+    if (!key) return;
+    if (key === state.drawerKey) {
+      socket.emit('toast', '你自己就能给提示呀');
+      return;
+    }
+    if (state.phase === 'revealed') {
+      socket.emit('toast', '这一轮已经结束了');
+      return;
+    }
+    if (state.hintAsks.has(key)) {
+      socket.emit('toast', '已经请求过啦，等画手');
+      return;
+    }
+
+    state.hintAsks.add(key);
+    io.emit('feed:sys', '「' + nameOf(key) + '」请求给个提示');
+    broadcastState();
+  });
+
   socket.on('hint', () => {
     const key = sockets.get(socket.id);
-    if (!key || key !== state.drawerKey) return;
+    if (!key) return;
+    if (key !== state.drawerKey) {
+      socket.emit('toast', '只有画手能给提示，你可以先请求一下');
+      return;
+    }
 
     const chars = [...state.word];
     if (state.revealed >= chars.length - 1) {
@@ -673,6 +704,7 @@ io.on('connection', (socket) => {
 
     state.revealed++;
     const ch = chars[state.revealed - 1];
+    state.hintAsks.clear();     // 响应过了，大家都重新可以请求
 
     // 第二次提示起，画手扣 5 分
     if (state.revealed > 1) {
