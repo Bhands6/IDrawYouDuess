@@ -519,7 +519,12 @@ io.on('connection', (socket) => {
     // 中途进来的人也要看到已经画的东西
     socket.emit('canvas:init', state.strokes);
 
-    if (role === 'drawer') {
+    // 「重开后等大家选身份」的中间态：不自动占画手位，也不自动开局
+    const fresh = state.phase === 'revealed' && !state.word;
+
+    if (role === 'drawer' && fresh) {
+      broadcastState();
+    } else if (role === 'drawer') {
       if (state.drawerKey === key && state.phase === 'revealed' && state.word) {
         // 画手刷新回来：题目和画布都还在，直接续上
         state.phase = 'idle';
@@ -847,16 +852,34 @@ io.on('connection', (socket) => {
       return;
     }
 
+    clearInterval(state.timer);
+    state.timer = null;
+    clearBotTimers();
+
     players.forEach(p => {
       p.score = p.bot ? 40 + Math.floor(Math.random() * 70) : 0;
     });
+
+    // 分数清零后回到「选身份」的收尾界面，不直接开新局
     state.round = 0;
     state.word = '';
-    state.phase = 'waiting';
+    state.cat = '';
+    state.hint = '';
+    state.revealed = 0;
+    state.strokes = [];
+    state.timeLeft = state.timeLimit;
+    state.timerRunning = false;
+    state.lastWinner = '';
+    state.drawerKey = null;
+    state.phase = 'revealed';
+
+    state.nextVotes.clear();
+    state.hintAsks.clear();
     state.resetAsks.clear();
-    // 画手保留，只清分数和画布
-    io.emit('feed:sys', '房间重开，分数已清零');
-    beginRound();
+
+    io.emit('canvas:init', []);
+    io.emit('feed:sys', '房间重开，分数已清零 — 重新选个身份吧');
+    broadcastState();
   });
 
   /* ---------- 断开 ---------- */

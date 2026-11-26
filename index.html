@@ -211,6 +211,7 @@ canvas#board{display:block;width:100%;height:auto;touch-action:none;cursor:cross
   font-family:var(--font-display);font-size:clamp(34px,6vw,66px);color:var(--red);
   background:var(--card);border:3.5px solid var(--ink);border-radius:20px;padding:6px 34px;box-shadow:var(--shadow)
 }
+.round-banner .rb-word[hidden]{display:none}
 .round-banner .rb-note{font-family:var(--font-mono);font-size:12px;letter-spacing:.12em;color:var(--muted)}
 .rb-actions{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
 .rb-votes{
@@ -1033,15 +1034,27 @@ window.__bootGame = function(){
 
   function renderBanner(){
     if (!S) return;
-    const on = S.phase === 'revealed' && !!S.lastWord;
+    const on = S.phase === 'revealed';
     if (!on){
       banner.classList.remove('is-on');
+      banner.dataset.mode = '';
       return;
     }
-    $('rbWord').textContent = S.lastWord;
-    if (!banner.classList.contains('is-on')){
-      $('rbTitle').textContent = S.lastWinner ? S.lastWinner + ' 猜对了！' : '时间到！';
-      $('rbNote').textContent = '答案揭晓 · 选个身份继续';
+
+    // answer = 正常揭晓；fresh = 重开一局后回到选身份
+    const mode = S.lastWord ? 'answer' : 'fresh';
+    if (banner.dataset.mode !== mode){
+      banner.dataset.mode = mode;
+      if (S.lastWord){
+        $('rbWord').hidden = false;
+        $('rbWord').textContent = S.lastWord;
+        $('rbTitle').textContent = S.lastWinner ? S.lastWinner + ' 猜对了！' : '时间到！';
+        $('rbNote').textContent = '答案揭晓 · 选个身份继续';
+      } else {
+        $('rbWord').hidden = true;
+        $('rbTitle').textContent = '新的一局';
+        $('rbNote').textContent = '分数已清零 · 选个身份开始';
+      }
       banner.classList.add('is-on');
     }
     renderBannerActions();
@@ -1049,6 +1062,17 @@ window.__bootGame = function(){
 
   function renderResetBtn(){
     if (!S) return;
+
+    // 重开后的选身份界面里没有"再重开一次"这回事
+    const fresh = S.phase === 'revealed' && !S.lastWord;
+    if (fresh){
+      resetBtn.textContent = '重开一局';
+      resetBtn.disabled = true;
+      resetBtn.style.background = '';
+      resetBtn.style.color = '';
+      return;
+    }
+
     const n = S.resetAskCount || 0;
 
     if (isDrawer()){
@@ -1093,7 +1117,9 @@ window.__bootGame = function(){
   });
 
   socket.on('round:end', (info) => {
+    banner.dataset.mode = 'answer';
     banner.classList.add('is-on');
+    $('rbWord').hidden = false;
     $('rbWord').textContent = info.word;
     if (info.winner){
       $('rbTitle').textContent = info.winner + ' 猜对了！';
@@ -1103,7 +1129,7 @@ window.__bootGame = function(){
       confetti();
     } else {
       $('rbTitle').textContent = '时间到！';
-      $('rbNote').textContent = '答案揭晓 · 在画布上下笔即可开启新一轮';
+      $('rbNote').textContent = '答案揭晓 · 选个身份继续';
     }
   });
 
