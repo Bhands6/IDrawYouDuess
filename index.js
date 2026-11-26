@@ -122,6 +122,8 @@ const state = {
   drawerKey: null,
   word: '',
   cat: '',
+  hint: '',
+  hintPublic: false,
   revealed: 0,
   timeLeft: TOTAL,
   timerRunning: false,
@@ -308,6 +310,9 @@ function viewFor(socketId) {
     guesserCount: [...players.values()].filter(p => p.online && !p.bot && p.key !== state.drawerKey).length,
     word: isDrawer ? state.word : '',
     cat: isDrawer ? state.cat : '秘密',
+    // 提示只有画手能看到全文；给过一次提示后对所有公开
+    hintText: (isDrawer || state.hintPublic) ? state.hint : '',
+    hintPublic: state.hintPublic,
     len: chars.length,
     revealed: state.revealed,
     mask: chars.map((c, i) => (i < state.revealed ? c : '')),
@@ -364,6 +369,8 @@ function beginRound() {
   } while (WORDS.length > 1 && w.word === prev);
   state.word = w.word;
   state.cat = w.cat;
+  state.hint = '';          // 词库题的提示语不参与游戏，避免点一次提示直接泄底
+  state.hintPublic = false;
 
   state.round++;
   state.phase = state.drawerKey ? 'idle' : 'waiting';
@@ -631,6 +638,7 @@ io.on('connection', (socket) => {
       socket.emit('toast', '题目不能是空的');
       return;
     }
+    const hint = String((payload && payload.hint) || '').replace(/\s+/g, ' ').trim().slice(0, 30);
 
     clearInterval(state.timer);
     state.timer = null;
@@ -638,6 +646,8 @@ io.on('connection', (socket) => {
 
     state.word = word;
     state.cat = '自定义';
+    state.hint = hint;
+    state.hintPublic = false;
     state.revealed = 0;
     state.guessed.clear();
     state.strokes = [];
@@ -656,6 +666,15 @@ io.on('connection', (socket) => {
     if (!key || key !== state.drawerKey) return;
 
     const chars = [...state.word];
+
+    // 画手自己写过提示语 → 第一次点提示先把它公开
+    if (!state.hintPublic && state.hint) {
+      state.hintPublic = true;
+      io.emit('feed:sys', '画手公开了提示语');
+      broadcastState();
+      return;
+    }
+
     if (state.revealed >= chars.length - 1) {
       socket.emit('toast', '再提示就全露馅啦');
       return;
