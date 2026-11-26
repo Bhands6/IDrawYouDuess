@@ -893,6 +893,10 @@ io.on('connection', (socket) => {
     if (!stillOnline && p) {
       p.online = false;
       p.offlineAt = Date.now();
+      // 人都走了，别把他的请求继续挂在画手按钮上
+      state.hintAsks.delete(key);
+      state.nextVotes.delete(key);
+      state.resetAsks.delete(key);
     }
 
     // 画手掉线 → 本轮直接结算，避免全房间卡住
