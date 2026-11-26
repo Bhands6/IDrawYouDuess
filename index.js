@@ -129,6 +129,7 @@ const state = {
   timer: null,
   strokes: [],
   guessed: new Set(),
+  nextVotes: new Set(),   // 本轮结束后，按了「请求下一轮」的猜图者
   botTimers: [],
   lastWinner: ''
 };
@@ -319,6 +320,7 @@ function viewFor(socketId) {
     running: state.timerRunning,
     lastWord: state.phase === 'revealed' ? state.word : '',
     lastWinner: state.phase === 'revealed' ? state.lastWinner : '',
+    nextVotes: [...state.nextVotes],
     players: [...players.values()].map(p => ({
       key: p.key,
       name: p.name,
@@ -351,6 +353,7 @@ function beginRound() {
 
   state.strokes = [];
   state.guessed.clear();
+  state.nextVotes.clear();
   state.revealed = 0;
   state.timeLeft = TOTAL;
   state.timerRunning = false;
@@ -427,6 +430,7 @@ function endRound(winnerKey) {
   state.timerRunning = false;
   clearBotTimers();
   state.phase = 'revealed';
+  state.nextVotes.clear();
 
   const drawer = players.get(state.drawerKey);
   let drawerBonus = 0;
@@ -714,17 +718,46 @@ io.on('connection', (socket) => {
   });
 
   /* ---------- 回合控制 ---------- */
+  // 猜图者只能「请求」下一轮，真正开始由画手决定
+  socket.on('next:request', () => {
+    const key = sockets.get(socket.id);
+    if (!key) return;
+    if (state.phase !== 'revealed') {
+      socket.emit('toast', '还没到可以请求的时候');
+      return;
+    }
+    if (key === state.drawerKey) {
+      socket.emit('toast', '直接点「下一轮」就行');
+      return;
+    }
+    if (state.nextVotes.has(key)) return;
+
+    state.nextVotes.add(key);
+    io.emit('feed:sys', '「' + nameOf(key) + '」想开下一轮');
+    broadcastState();
+  });
+
   socket.on('next', () => {
+    const key = sockets.get(socket.id);
     if (state.phase !== 'revealed') {
       socket.emit('toast', '这一轮还没结束呢');
+      return;
+    }
+    if (key !== state.drawerKey) {
+      socket.emit('toast', '只有画手能开下一轮，先请求一下吧');
       return;
     }
     beginRound();
   });
 
   socket.on('retry', () => {
+    const key = sockets.get(socket.id);
     if (state.phase !== 'revealed') {
       socket.emit('toast', '这一轮还没结束呢');
+      return;
+    }
+    if (key !== state.drawerKey) {
+      socket.emit('toast', '只有画手能重画这一题');
       return;
     }
     retryRound();

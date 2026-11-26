@@ -213,6 +213,10 @@ canvas#board{display:block;width:100%;height:auto;touch-action:none;cursor:cross
 }
 .round-banner .rb-note{font-family:var(--font-mono);font-size:12px;letter-spacing:.12em;color:var(--muted)}
 .rb-actions{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.rb-votes{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;color:var(--red);
+  min-height:15px;line-height:1.5
+}
 
 /* toolbar */
 .toolbar{
@@ -535,6 +539,7 @@ canvas#board{display:block;width:100%;height:auto;touch-action:none;cursor:cross
           <button class="btn btn-accent" id="nextBtn">下一轮</button>
           <button class="btn btn-yellow" id="replayBtn">再画一张</button>
         </div>
+        <div class="rb-votes" id="rbVotes"></div>
       </div>
     </div>
 
@@ -937,6 +942,24 @@ window.__bootGame = function(){
       : '输入你的答案，回车提交';
   }
 
+  function renderBannerActions(){
+    if (!S) return;
+    const votes = (S.nextVotes || []).length;
+    const asked = !!(S.nextVotes && S.nextVotes.includes(S.you));
+
+    if (isDrawer()){
+      $('nextBtn').textContent = '下一轮';
+      $('nextBtn').disabled = false;
+      $('replayBtn').hidden = false;
+      $('rbVotes').textContent = votes ? votes + ' 人想开下一轮' : '';
+    } else {
+      $('nextBtn').textContent = asked ? '已请求 · 等画手开始' : '请求下一轮';
+      $('nextBtn').disabled = asked;
+      $('replayBtn').hidden = true;
+      $('rbVotes').textContent = votes ? votes + ' 人已请求' : '';
+    }
+  }
+
   function renderBanner(){
     if (!S) return;
     const on = S.phase === 'revealed' && !!S.lastWord;
@@ -944,14 +967,13 @@ window.__bootGame = function(){
       banner.classList.remove('is-on');
       return;
     }
+    $('rbWord').textContent = S.lastWord;
     if (!banner.classList.contains('is-on')){
-      $('rbWord').textContent = S.lastWord;
       $('rbTitle').textContent = S.lastWinner ? S.lastWinner + ' 猜对了！' : '时间到！';
-      $('rbNote').textContent = S.lastWinner ? '答案揭晓' : '答案揭晓 · 在画布上下笔即可开启新一轮';
+      $('rbNote').textContent = '答案揭晓';
       banner.classList.add('is-on');
-    } else {
-      $('rbWord').textContent = S.lastWord;
     }
+    renderBannerActions();
   }
 
   function renderAll(){
@@ -1253,7 +1275,10 @@ window.__bootGame = function(){
   });
 
   /* ================= 按钮 ================= */
-  $('nextBtn').addEventListener('click', () => socket.emit('next'));
+  $('nextBtn').addEventListener('click', () => {
+    if (S && S.isDrawer) socket.emit('next');
+    else socket.emit('next:request');
+  });
   $('replayBtn').addEventListener('click', () => socket.emit('retry'));
   $('resetBtn').addEventListener('click', () => {
     socket.emit('reset');
