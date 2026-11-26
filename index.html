@@ -750,6 +750,7 @@ window.__bootGame = function(){
   const editWord = $('editWord'), editHint = $('editHint');
   const timerSetBtn = $('timerSetBtn'), timerEditor = $('timerEditor');
   const timerInput = $('timerInput'), timerSave = $('timerSave'), timerPresets = $('timerPresets');
+  const resetBtn = $('resetBtn');
 
   /* ================= 状态 ================= */
   const socket = io(window.__SHARECODE__
@@ -1046,6 +1047,23 @@ window.__bootGame = function(){
     renderBannerActions();
   }
 
+  function renderResetBtn(){
+    if (!S) return;
+    const n = S.resetAskCount || 0;
+
+    if (isDrawer()){
+      resetBtn.textContent = n > 0 ? '重开一局 (' + n + ')' : '重开一局';
+      resetBtn.disabled = false;
+      resetBtn.style.background = n > 0 ? 'var(--red)' : '';
+      resetBtn.style.color = n > 0 ? '#fff' : '';
+    } else {
+      resetBtn.textContent = S.resetAsked ? '已请求重开' : '请求重开';
+      resetBtn.disabled = !!S.resetAsked;
+      resetBtn.style.background = '';
+      resetBtn.style.color = '';
+    }
+  }
+
   function renderAll(){
     if (!S) return;
     renderPlayers();
@@ -1057,6 +1075,7 @@ window.__bootGame = function(){
     renderBoard();
     renderPhase();
     renderBanner();
+    renderResetBtn();
   }
 
   /* ================= 服务端状态 ================= */
@@ -1392,9 +1411,9 @@ window.__bootGame = function(){
   /* ================= 按钮 ================= */
   $('nextBtn').addEventListener('click', () => socket.emit('next'));
   $('guessBtn').addEventListener('click', () => socket.emit('next:request'));
-  $('resetBtn').addEventListener('click', () => {
-    socket.emit('reset');
-    showToast('新的一局开始，加油画！');
+  resetBtn.addEventListener('click', () => {
+    if (S && S.isDrawer) socket.emit('reset');
+    else socket.emit('reset:request');
   });
 
   /* ================= 改名 ================= */

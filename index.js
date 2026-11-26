@@ -132,6 +132,7 @@ const state = {
   guessed: new Set(),
   nextVotes: new Set(),   // 本轮结束后，按了「请求下一轮」的猜图者
   hintAsks: new Set(),    // 本轮里请求过提示、还没被响应的猜图者
+  resetAsks: new Set(),   // 请求过重开一局的猜图者
   botTimers: [],
   lastWinner: ''
 };
@@ -325,6 +326,8 @@ function viewFor(socketId) {
     nextVotes: [...state.nextVotes],
     hintAsked: !!key && state.hintAsks.has(key),
     hintAskCount: state.hintAsks.size,
+    resetAsked: !!key && state.resetAsks.has(key),
+    resetAskCount: state.resetAsks.size,
     players: [...players.values()].map(p => ({
       key: p.key,
       name: p.name,
@@ -820,13 +823,37 @@ io.on('connection', (socket) => {
     retryRound();
   });
 
+  // 重开一局 = 分数清零重来，只有画手能真正执行
+  socket.on('reset:request', () => {
+    const key = sockets.get(socket.id);
+    if (!key) return;
+    if (key === state.drawerKey) {
+      socket.emit('toast', '你自己就能重开');
+      return;
+    }
+    if (state.resetAsks.has(key)) {
+      socket.emit('toast', '已经请求过啦，等画手');
+      return;
+    }
+    state.resetAsks.add(key);
+    io.emit('feed:sys', '「' + nameOf(key) + '」请求重开一局');
+    broadcastState();
+  });
+
   socket.on('reset', () => {
+    const key = sockets.get(socket.id);
+    if (!key || key !== state.drawerKey) {
+      socket.emit('toast', '只有画手能重开一局，你可以先请求');
+      return;
+    }
+
     players.forEach(p => {
       p.score = p.bot ? 40 + Math.floor(Math.random() * 70) : 0;
     });
     state.round = 0;
     state.word = '';
     state.phase = 'waiting';
+    state.resetAsks.clear();
     // 画手保留，只清分数和画布
     io.emit('feed:sys', '房间重开，分数已清零');
     beginRound();
