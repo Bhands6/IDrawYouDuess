@@ -358,7 +358,8 @@ function viewFor(socketId) {
     hintAskCount: state.hintAsks.size,
     resetAsked: !!key && state.resetAsks.has(key),
     resetAskCount: state.resetAsks.size,
-    players: [...players.values()].map(p => ({
+    // 玩家榜只下发在线的人；离线玩家保留在服务端（等重连恢复分数），但不占榜
+    players: [...players.values()].filter(p => p.online).map(p => ({
       key: p.key,
       name: p.name,
       score: p.score,
