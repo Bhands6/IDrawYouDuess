@@ -1227,11 +1227,11 @@ window.__bootGame = function(){
     const need = Math.max(1, Math.ceil(boxW / Math.max(oneW, 1)) + 1);
     const html = one.repeat(need);
     tickerTrack.innerHTML = html + html;   // 两份内容实现无缝循环
-    // 内容变长后按宽度换算时长，保持滚动速度基本恒定
-    tickerTrack.style.animationDuration = Math.max(18, (need * oneW) / 42) + 's';
     // 宽度变了，让滚动重新从起点开始，避免位置突跳
     void tickerTrack.offsetWidth;
     tickerTrack.style.animation = '';
+    // 内容变长后按宽度换算时长，保持滚动速度基本恒定（放在恢复动画之后，避免被简写属性清掉）
+    tickerTrack.style.animationDuration = Math.max(18, (need * oneW) / 42) + 's';
   }
 
   function pushTicker(text){
