@@ -485,7 +485,7 @@ canvas#board{display:block;width:100%;height:auto;touch-action:none;cursor:cross
           <div class="topic-label" id="topicLabel">题目</div>
           <strong id="secretWord">？</strong>
         </div>
-        <div class="topic-cat"><span id="topicCat">秘密</span><br><span id="topicLen">0 个字</span></div>
+        <div class="topic-cat"><span id="topicCat">分类</span><br><span id="topicLen">0 个字</span></div>
         <button class="topic-edit" id="topicEditBtn" type="button" title="自己定题目和提示" hidden>
           <svg width="13" height="13" viewBox="0 0 32 32" fill="none" stroke="#141118" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
             <path d="M22 4l6 6-14 14-7 2 2-7L22 4z"/>
@@ -821,7 +821,7 @@ window.__bootGame = function(){
     const drawer = isDrawer();
     $('topicLabel').textContent = drawer ? '你的题目 · 可改' : '题目';
     $('secretWord').textContent = drawer ? S.word : '？'.repeat(Math.max(1, S.len));
-    $('topicCat').textContent = drawer ? S.cat : '秘密';
+    $('topicCat').textContent = S.cat || '自定义';
     $('topicLen').textContent = S.len + ' 个字';
 
     const canEdit = drawer && S.phase !== 'revealed';

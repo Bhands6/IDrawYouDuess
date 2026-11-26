@@ -308,7 +308,7 @@ function viewFor(socketId) {
     drawerOnline: !!(drawerPlayer && drawerPlayer.online),
     guesserCount: [...players.values()].filter(p => p.online && !p.bot && p.key !== state.drawerKey).length,
     word: isDrawer ? state.word : '',
-    cat: isDrawer ? state.cat : '秘密',
+    cat: state.cat,          // 分类是公开线索，双方都看得到
     // 只有题目保密；提示是给所有人看的线索
     hintText: state.hint,
     len: chars.length,
