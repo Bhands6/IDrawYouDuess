@@ -483,9 +483,9 @@ canvas#board{display:block;width:100%;height:auto;touch-action:none;cursor:cross
 </div>
 
 <div class="ticker" aria-hidden="true">
-  <div class="ticker-track">
-    <span>轮到你画画 · 下笔即开始计时</span><span>小满 进入了房间</span><span>提示按钮可以帮你打开局面</span><span>画得越像 大家猜得越快</span><span>涂鸦派对 · 今晚手气不错</span>
-    <span>轮到你画画 · 下笔即开始计时</span><span>小满 进入了房间</span><span>提示按钮可以帮你打开局面</span><span>画得越像 大家猜得越快</span><span>涂鸦派对 · 今晚手气不错</span>
+  <div class="ticker-track" id="tickerTrack">
+    <span>轮到你画画 · 下笔即开始计时</span><span>提示按钮可以帮你打开局面</span><span>画得越像 大家猜得越快</span><span>涂鸦派对 · 今晚手气不错</span>
+    <span>轮到你画画 · 下笔即开始计时</span><span>提示按钮可以帮你打开局面</span><span>画得越像 大家猜得越快</span><span>涂鸦派对 · 今晚手气不错</span>
   </div>
 </div>
 
@@ -777,6 +777,7 @@ window.__bootGame = function(){
   const timerInput = $('timerInput'), timerSave = $('timerSave'), timerPresets = $('timerPresets');
   const resetBtn = $('resetBtn');
   const boardNote = $('boardNote');
+  const tickerTrack = $('tickerTrack');
 
   /* ================= 状态 ================= */
   const socket = io(window.__SHARECODE__
@@ -1206,6 +1207,36 @@ window.__bootGame = function(){
     if (payload && payload.text) showBoardNote(payload.text);
   });
 
+  /* ================= 顶部滚动条：真实进出记录 ================= */
+  const DEFAULT_TICKER = [
+    '轮到你画画 · 下笔即开始计时',
+    '提示按钮可以帮你打开局面',
+    '画得越像 大家猜得越快',
+    '涂鸦派对 · 今晚手气不错'
+  ];
+  const tickerMsgs = [];
+
+  function renderTicker(){
+    const items = tickerMsgs.length ? tickerMsgs : DEFAULT_TICKER;
+    const html = items.map(t => '<span>' + escapeHtml(t) + '</span>').join('');
+    tickerTrack.innerHTML = html + html;   // 两份内容实现无缝循环
+    // 宽度变了，让滚动重新从起点开始，避免位置突跳
+    tickerTrack.style.animation = 'none';
+    void tickerTrack.offsetWidth;
+    tickerTrack.style.animation = '';
+  }
+
+  function pushTicker(text){
+    tickerMsgs.push(text);
+    while (tickerMsgs.length > 8) tickerMsgs.shift();
+    renderTicker();
+  }
+
+  socket.on('presence', (payload) => {
+    if (!payload || !payload.name) return;
+    pushTicker(payload.name + (payload.action === 'leave' ? ' 离开了房间' : ' 进入了房间'));
+  });
+
   /* ================= 画布：渲染 ================= */
   function styleFor(s){
     ctx.lineCap = 'round';
@@ -1526,6 +1557,7 @@ window.__bootGame = function(){
 
   /* ================= 启动 ================= */
   boardHint.classList.add('is-hidden');
+  renderTicker();
 
   // 连不上时给出能定位问题的提示，而不是一直停在"正在连接"
   socket.on('connect_error', (err) => {

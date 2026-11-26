@@ -548,6 +548,7 @@ io.on('connection', (socket) => {
       players.set(key, p);
       joinOrder.push(key);
       io.emit('feed:sys', '「' + p.name + '」' + (role === 'drawer' ? '拿起画笔入座' : '进来猜图'));
+      io.emit('presence', { name: p.name, action: 'join' });
     } else {
       p.online = true;
       p.offlineAt = 0;
@@ -937,6 +938,7 @@ io.on('connection', (socket) => {
     if (!stillOnline && p) {
       p.online = false;
       p.offlineAt = Date.now();
+      io.emit('presence', { name: p.name, action: 'leave' });
       // 人都走了，别把他的请求继续挂在画手按钮上
       state.hintAsks.delete(key);
       state.nextVotes.delete(key);
