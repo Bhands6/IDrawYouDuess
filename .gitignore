@@ -1,0 +1,14 @@
+# 依赖
+node_modules/
+
+# 改造前的本地备份
+*.bak
+*.bak.html
+*.bak.js
+
+# 临时文件
+.chk*.js
+*.log
+.DS_Store
+Thumbs.db
+.workbuddy/
