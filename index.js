@@ -780,36 +780,31 @@ io.on('connection', (socket) => {
   });
 
   /* ---------- 回合控制 ---------- */
-  // 猜图者只能「请求」下一轮，真正开始由画手决定
+  // 本轮结束后，谁点「我来画」谁就是下一轮画手，并立即开局
+  socket.on('next', () => {
+    const key = sockets.get(socket.id);
+    if (!key) return;
+    if (state.phase !== 'revealed') {
+      socket.emit('toast', '这一轮还没结束呢');
+      return;
+    }
+    state.drawerKey = key;
+    beginRound();
+  });
+
+  // 本轮结束后点「我来猜」：只登记意愿，等有人接画笔
   socket.on('next:request', () => {
     const key = sockets.get(socket.id);
     if (!key) return;
     if (state.phase !== 'revealed') {
-      socket.emit('toast', '还没到可以请求的时候');
-      return;
-    }
-    if (key === state.drawerKey) {
-      socket.emit('toast', '直接点「下一轮」就行');
+      socket.emit('toast', '还没到选身份的时候');
       return;
     }
     if (state.nextVotes.has(key)) return;
 
     state.nextVotes.add(key);
-    io.emit('feed:sys', '「' + nameOf(key) + '」想开下一轮');
+    io.emit('feed:sys', '「' + nameOf(key) + '」准备猜下一轮');
     broadcastState();
-  });
-
-  socket.on('next', () => {
-    const key = sockets.get(socket.id);
-    if (state.phase !== 'revealed') {
-      socket.emit('toast', '这一轮还没结束呢');
-      return;
-    }
-    if (key !== state.drawerKey) {
-      socket.emit('toast', '只有画手能开下一轮，先请求一下吧');
-      return;
-    }
-    beginRound();
   });
 
   socket.on('retry', () => {

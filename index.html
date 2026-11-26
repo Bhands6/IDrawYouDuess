@@ -566,8 +566,8 @@ canvas#board{display:block;width:100%;height:auto;touch-action:none;cursor:cross
         <div class="rb-word" id="rbWord">西瓜</div>
         <div class="rb-note" id="rbNote">答案揭晓</div>
         <div class="rb-actions">
-          <button class="btn btn-accent" id="nextBtn">下一轮</button>
-          <button class="btn btn-yellow" id="replayBtn">再画一张</button>
+          <button class="btn btn-accent" id="nextBtn">我来画</button>
+          <button class="btn btn-yellow" id="guessBtn">我来猜</button>
         </div>
         <div class="rb-votes" id="rbVotes"></div>
       </div>
@@ -1017,19 +1017,17 @@ window.__bootGame = function(){
   function renderBannerActions(){
     if (!S) return;
     const votes = (S.nextVotes || []).length;
-    const asked = !!(S.nextVotes && S.nextVotes.includes(S.you));
+    const choseGuess = !!(S.nextVotes && S.nextVotes.includes(S.you));
 
-    if (isDrawer()){
-      $('nextBtn').textContent = '下一轮';
-      $('nextBtn').disabled = false;
-      $('replayBtn').hidden = false;
-      $('rbVotes').textContent = votes ? votes + ' 人想开下一轮' : '';
-    } else {
-      $('nextBtn').textContent = asked ? '已请求 · 等画手开始' : '请求下一轮';
-      $('nextBtn').disabled = asked;
-      $('replayBtn').hidden = true;
-      $('rbVotes').textContent = votes ? votes + ' 人已请求' : '';
-    }
+    // 人人可选：谁点「我来画」谁就是下一轮画手，点完立刻开局
+    $('nextBtn').textContent = '我来画';
+    $('nextBtn').disabled = false;
+    $('guessBtn').textContent = choseGuess ? '已选 · 等有人接画笔' : '我来猜';
+    $('guessBtn').disabled = choseGuess;
+
+    $('rbVotes').textContent = votes
+      ? votes + ' 人已就位 · 等有人接画笔'
+      : '选个身份，谁来画下一轮？';
   }
 
   function renderBanner(){
@@ -1042,7 +1040,7 @@ window.__bootGame = function(){
     $('rbWord').textContent = S.lastWord;
     if (!banner.classList.contains('is-on')){
       $('rbTitle').textContent = S.lastWinner ? S.lastWinner + ' 猜对了！' : '时间到！';
-      $('rbNote').textContent = '答案揭晓';
+      $('rbNote').textContent = '答案揭晓 · 选个身份继续';
       banner.classList.add('is-on');
     }
     renderBannerActions();
@@ -1392,11 +1390,8 @@ window.__bootGame = function(){
   });
 
   /* ================= 按钮 ================= */
-  $('nextBtn').addEventListener('click', () => {
-    if (S && S.isDrawer) socket.emit('next');
-    else socket.emit('next:request');
-  });
-  $('replayBtn').addEventListener('click', () => socket.emit('retry'));
+  $('nextBtn').addEventListener('click', () => socket.emit('next'));
+  $('guessBtn').addEventListener('click', () => socket.emit('next:request'));
   $('resetBtn').addEventListener('click', () => {
     socket.emit('reset');
     showToast('新的一局开始，加油画！');
