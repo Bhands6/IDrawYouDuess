@@ -2,7 +2,7 @@
 
 # 🎨 我画你猜 · 涂鸦派对
 
-**一个零数据库依赖的实时联机「你画我猜」网页小游戏**
+**一个实时联机「你画我猜」网页小游戏**
 —— 一个画手位 + 不限人数猜图者，笔画实时同步，服务端统一判题、计时、计分。
 
 ![Node](https://img.shields.io/badge/Node.js-18+-339933) ![Socket.IO](https://img.shields.io/badge/Socket.IO-4.8-010101) ![Database](https://img.shields.io/badge/数据库-无-orange) ![Dependencies](https://img.shields.io/badge/npm%20依赖-1%20个-brightgreen) ![Deploy](https://img.shields.io/badge/部署-WorkBuddy-blue) ![Version](https://img.shields.io/badge/version-v1.0-pink)
@@ -14,6 +14,14 @@
 ---
 
 ## ✨ 这是什么
+
+<div align="center">
+
+<img src="docs/preview.jpg" alt="涂鸦派对游戏界面截图" width="820">
+
+<p align="center">🎨 纸感涂鸦风格 · 实时联机 · 猜中撒花 —— 左上玩家榜、中央共享画布、右侧猜词现场</p>
+
+</div>
 
 一个打开网页就能玩的「你画我猜」：无需注册，填个昵称选「我来画」或「我来猜」就能进场。画手画、大家猜，笔画毫秒级同步，服务端统一判题计分。前端原生 JS + Canvas 2D，后端 Node.js + Socket.IO，没有框架、没有构建步骤。
 
@@ -42,13 +50,6 @@ node index.js          # 打开 http://localhost（默认 80 端口）
 
 > 需要 Node.js 18+。端口被占用可用环境变量覆盖：`PORT=3000 node index.js`。
 
-### 云端部署
-
-项目已通过 WorkBuddy Sites 以 `http-service` 部署，零配置上线：服务监听 `process.env.PORT` 并绑定 `0.0.0.0`，依赖随 `package.json` 在沙箱内自动安装。
-
-> 🔑 **分享必须带完整链接**：云端靠 URL 里的 `?sharecode=H2CRELLE3J` 鉴权，只发裸域名会返回 403。
-> 浏览器会自动带上鉴权 cookie，前端也会把 sharecode 拼进脚本地址和 Socket.IO 握手参数，无需手动处理。
-> ⚠️ 部分内嵌预览容器不允许 WebSocket 长连接，页面能打开但连不上房间；请用 Chrome / Edge 直接打开完整链接。
 
 ---
 
@@ -102,21 +103,6 @@ node index.js          # 打开 http://localhost（默认 80 端口）
 
 ---
 
-## 🏗️ 技术架构
-
-```
-浏览器 ──► 单页前端 index.html（原生 JS + Canvas 2D）
-                │  Socket.IO 4 长连接（WebSocket，降级 polling）
-                ▼
-        ┌───────────────────────────┐
-        │  index.js  Node 零框架后端 │
-        │  静态服务 + 房间状态机      │
-        │  判题 / 计时 / 计分 / 权限  │
-        └─────────────┬─────────────┘
-                      ▼
-              内存中的单房间状态 state
-              （无持久化，重启即清空）
-```
 
 ### 房间状态机
 
@@ -153,6 +139,8 @@ socket.io/
 ├── package-lock.json
 ├── js/
 │   └── socket.io.min.js      # 客户端副本，主路径失效时的降级来源
+├── docs/
+│   └── preview.jpg           # README 顶部展示的游戏界面截图
 ├── .gitignore / .gitattributes
 └── README.md                 # 本文件
 ```
@@ -194,19 +182,7 @@ socket.io/
 - **房间状态存在内存里**，重启进程即清空分数和画布；部署更新也会重置房间。
 - **单房间设计**，不支持多房间 / 房间号。
 - **没有账号体系**，身份靠浏览器 localStorage，换设备就是新玩家。
-- **云端鉴权依赖 sharecode**，裸域名 403；部分内嵌预览容器不支持长连接，需正常浏览器访问。
 - **提示只揭示字**，不扣分。
 
 ---
 
-## 🤝 贡献
-
-欢迎 Issue 与 PR。发布内容请友善分享、尊重他人。
-
----
-
-<div align="center">
-
-**画得越像，猜得越快** · Made with ❤ · 每一笔都值得被看见
-
-</div>
