@@ -199,21 +199,24 @@ canvas#board{display:block;width:100%;height:auto;touch-action:none;cursor:cross
 
 /* 画布上的临时通知（只推给画手：有人请求提示 / 请求重开） */
 .board-note{
-  position:absolute;left:50%;top:44%;transform:translate(-50%,-50%) scale(1.4);z-index:7;
-  pointer-events:none;text-align:center;max-width:88%;
-  font-family:var(--font-display);font-size:clamp(24px,3.8vw,44px);line-height:1.2;
+  position:absolute;left:50%;top:15%;transform:translate(-50%,-50%) scale(1.5);z-index:7;
+  pointer-events:none;text-align:center;max-width:86%;
+  font-family:var(--font-display);font-size:clamp(22px,3.4vw,40px);line-height:1.2;
   color:var(--ink);letter-spacing:.02em;
-  text-shadow:0 3px 0 rgba(20,17,24,.10), 0 0 22px rgba(255,253,246,.95);
-  opacity:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+  text-shadow:0 3px 0 rgba(20,17,24,.08), 0 0 22px rgba(255,253,246,.95);
+  opacity:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  will-change:transform,opacity
 }
-.board-note.is-on{animation:noteShrink 2.6s cubic-bezier(.25,.8,.35,1) forwards}
+.board-note.is-on{animation:noteShrink 3s cubic-bezier(.33,0,.2,1) forwards}
 
-/* 由大变小、边缩边淡出 */
+/* 大字出现 → 匀速缩小 → 淡出，减少关键帧跳变让收尾更顺滑 */
 @keyframes noteShrink{
-  0%   {opacity:0;    transform:translate(-50%,-50%) scale(1.45)}
-  12%  {opacity:1;    transform:translate(-50%,-50%) scale(1.18)}
-  55%  {opacity:.95;  transform:translate(-50%,-50%) scale(.86)}
-  100% {opacity:0;    transform:translate(-50%,-50%) scale(.42)}
+  0%   {opacity:0;    transform:translate(-50%,-50%) scale(1.5)}
+  14%  {opacity:1;    transform:translate(-50%,-50%) scale(1.2)}
+  46%  {opacity:1;    transform:translate(-50%,-50%) scale(1)}
+  72%  {opacity:.55;  transform:translate(-50%,-50%) scale(.86)}
+  90%  {opacity:.15;  transform:translate(-50%,-50%) scale(.78)}
+  100% {opacity:0;    transform:translate(-50%,-50%) scale(.72)}
 }
 .board-hint p{font-family:var(--font-display);font-size:clamp(17px,2.3vw,25px)}
 .board-hint small{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;color:var(--muted)}
@@ -1196,7 +1199,7 @@ window.__bootGame = function(){
     void boardNote.offsetWidth;      // 强制重排，保证连续两次也能重播动画
     boardNote.classList.add('is-on');
     clearTimeout(noteTimer);
-    noteTimer = setTimeout(() => boardNote.classList.remove('is-on'), 2700);
+    noteTimer = setTimeout(() => boardNote.classList.remove('is-on'), 3100);
   }
 
   socket.on('notice', (payload) => {
