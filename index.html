@@ -498,8 +498,8 @@ canvas#board{display:block;width:100%;height:auto;touch-action:none;cursor:cross
             <input id="editWord" type="text" maxlength="8" placeholder="想画什么？" autocomplete="off">
           </label>
           <label>
-            <span>提示</span>
-            <input id="editHint" type="text" maxlength="30" placeholder="给猜的人一点线索，可留空" autocomplete="off">
+            <span>提示（所有人都能看到）</span>
+            <input id="editHint" type="text" maxlength="30" placeholder="比如：是一种乐器，可留空" autocomplete="off">
           </label>
           <div class="topic-editor-actions">
             <button class="btn" id="editCancel" type="button">取消</button>
@@ -872,14 +872,14 @@ window.__bootGame = function(){
     hintBtn.style.cursor = drawer ? 'pointer' : 'not-allowed';
 
     const parts = [];
-    if (S.hintText) parts.push('提示：' + S.hintText + (drawer && !S.hintPublic ? '（还没公开）' : ''));
+    if (S.hintText) parts.push('提示：' + S.hintText);
     if (S.revealed > 0) parts.push('已公开第 ' + S.revealed + ' 个字');
 
     if (parts.length){
       hintLine.textContent = parts.join(' · ');
     } else {
       hintLine.textContent = drawer
-        ? '点题目卡片的铅笔能自己出题、写提示；点「给提示」时才公开'
+        ? '点题目卡片的铅笔能自己出题，写上的提示所有人都看得到'
         : '等画手下笔，本轮就开始了。';
     }
   }
