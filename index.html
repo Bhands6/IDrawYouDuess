@@ -1218,10 +1218,18 @@ window.__bootGame = function(){
 
   function renderTicker(){
     const items = tickerMsgs.length ? tickerMsgs : DEFAULT_TICKER;
-    const html = items.map(t => '<span>' + escapeHtml(t) + '</span>').join('');
-    tickerTrack.innerHTML = html + html;   // 两份内容实现无缝循环
-    // 宽度变了，让滚动重新从起点开始，避免位置突跳
+    const one = items.map(t => '<span>' + escapeHtml(t) + '</span>').join('');
+    // 先量一份的宽度，重复到能铺满可视区，避免滚到右侧露白
     tickerTrack.style.animation = 'none';
+    tickerTrack.innerHTML = one;
+    const oneW = tickerTrack.scrollWidth;
+    const boxW = tickerTrack.parentElement.clientWidth;
+    const need = Math.max(1, Math.ceil(boxW / Math.max(oneW, 1)) + 1);
+    const html = one.repeat(need);
+    tickerTrack.innerHTML = html + html;   // 两份内容实现无缝循环
+    // 内容变长后按宽度换算时长，保持滚动速度基本恒定
+    tickerTrack.style.animationDuration = Math.max(18, (need * oneW) / 42) + 's';
+    // 宽度变了，让滚动重新从起点开始，避免位置突跳
     void tickerTrack.offsetWidth;
     tickerTrack.style.animation = '';
   }
