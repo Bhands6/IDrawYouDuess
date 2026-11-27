@@ -164,7 +164,8 @@ const state = {
   hintAsks: new Set(),    // 本轮里请求过提示、还没被响应的猜图者
   resetAsks: new Set(),   // 请求过重开一局的猜图者
   botTimers: [],
-  lastWinner: ''
+  lastWinner: '',
+  endReason: ''       // solved | timeout | drawer_left：决定画手刷新回来是续画还是开新局
 };
 
 const players = new Map();   // key -> player
@@ -408,6 +409,7 @@ function beginRound() {
   state.timeLeft = state.timeLimit;
   state.timerRunning = false;
   state.lastWinner = '';
+  state.endReason = '';
 
   // 画手由玩家入场时自己选，这里只校验他还占着位置
   const d = state.drawerKey ? players.get(state.drawerKey) : null;
@@ -445,6 +447,7 @@ function retryRound() {
   state.revealed = 0;
   state.timeLeft = state.timeLimit;
   state.timerRunning = false;
+  state.endReason = '';
   state.phase = state.drawerKey ? 'idle' : 'waiting';
 
   io.emit('canvas:init', []);
@@ -477,7 +480,7 @@ function startTimer() {
   broadcastState();
 }
 
-function endRound(winnerKey) {
+function endRound(winnerKey, reason) {
   if (state.phase === 'revealed') return;
 
   clearInterval(state.timer);
@@ -485,6 +488,7 @@ function endRound(winnerKey) {
   state.timerRunning = false;
   clearBotTimers();
   state.phase = 'revealed';
+  state.endReason = reason || (winnerKey ? 'solved' : 'timeout');
   state.nextVotes.clear();
   state.hintAsks.clear();
 
@@ -568,8 +572,8 @@ io.on('connection', (socket) => {
     if (role === 'drawer' && fresh) {
       broadcastState();
     } else if (role === 'drawer') {
-      if (state.drawerKey === key && state.phase === 'revealed' && state.word) {
-        // 画手刷新回来：题目和画布都还在，直接续上
+      // 只有「画手掉线中断」才续画；正常结束（猜中/超时）后刷新回来点「我画」→ 开全新一轮，清掉旧笔迹
+      if (state.drawerKey === key && state.phase === 'revealed' && state.word && state.endReason === 'drawer_left') {
         state.phase = 'idle';
         state.timerRunning = false;
         state.timeLeft = state.timeLimit;
@@ -915,6 +919,7 @@ io.on('connection', (socket) => {
     state.timeLeft = state.timeLimit;
     state.timerRunning = false;
     state.lastWinner = '';
+    state.endReason = '';
     state.drawerKey = null;
     state.phase = 'revealed';
 
@@ -947,7 +952,7 @@ io.on('connection', (socket) => {
 
     // 画手掉线 → 本轮直接结算，避免全房间卡住
     if (!stillOnline && key === state.drawerKey && state.phase !== 'revealed') {
-      endRound(null);
+      endRound(null, 'drawer_left');
     }
 
     // 真人都走了就清掉陪玩，避免空房间堆垃圾
